@@ -17,10 +17,8 @@ name: Depends-On Comment
 
 on:
   workflow_run:
-    workflows:
-    - Build
-    types:
-    - completed
+    workflows: [Build]
+    types: [completed]
 
 permissions:
   actions: read          # download an artifact from the triggering run
@@ -232,7 +230,7 @@ jobs:
         AB_RUN_ID: ${{ github.run_id }}
         AB_HEAD_SHA: 8df6e2a3f45bf4a6cef791fb3cf9fb36e34cdb30
         AB_WORKFLOW_DIGEST: 
-          1de5b2de57e41782b03a48f5bc07ff87a91ac48c35cbf54d8ee2d677079b18be
+          567c3059ef806ceb264cfd0ba006c580dc6fb6f4c0e9069557061ff2a67df1ee
         AB_EVENT: ${{ github.event_name }}
         AB_SCHEDULE: ${{ github.event.schedule || '' }}
         AB_VARIABLES: ${{ toJSON(vars) }}

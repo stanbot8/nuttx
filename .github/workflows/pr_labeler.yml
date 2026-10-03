@@ -21,10 +21,10 @@
 name: Set Pull Request Labels
 on:
   workflow_run:
-    workflows:
-    - Pull Request Labeler
+    workflows: [Pull Request Labeler]
     types:
     - completed
+
 jobs:
   pr_labeler:
     permissions:
@@ -35,8 +35,9 @@ jobs:
     if: >-
       ${{ (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion
       == 'success') && needs.alpha_bridge_inputs.outputs.changed == 'true' }}
-    steps: -
-      name: Download PR artifact
+    steps:
+      # Download the PR Artifact, containing PR Number and PR Labels
+    - name: Download PR artifact
       uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3    # v9.0.0
       with:
         script: |
@@ -110,7 +111,7 @@ jobs:
         AB_RUN_ID: ${{ github.run_id }}
         AB_HEAD_SHA: 8df6e2a3f45bf4a6cef791fb3cf9fb36e34cdb30
         AB_WORKFLOW_DIGEST: 
-          d7faa462f3ec7f2be4cd9a94bb06b3d244921cbb80162a1726ec5e0dfac7ef1d
+          fb5102f8c4701a8cde766f791562f82751a211c423e0a624c7e9d399bd883849
         AB_EVENT: ${{ github.event_name }}
         AB_SCHEDULE: ${{ github.event.schedule || '' }}
         AB_VARIABLES: ${{ toJSON(vars) }}

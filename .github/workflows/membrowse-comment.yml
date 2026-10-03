@@ -2,10 +2,10 @@ name: MemBrowse PR Comment
 
 on:
   workflow_run:
-    workflows:
-    - MemBrowse Memory Report
+    workflows: [MemBrowse Memory Report]
     types:
     - completed
+
 jobs:
   comment:
     runs-on: ubuntu-latest
@@ -67,7 +67,7 @@ jobs:
         AB_RUN_ID: ${{ github.run_id }}
         AB_HEAD_SHA: 8df6e2a3f45bf4a6cef791fb3cf9fb36e34cdb30
         AB_WORKFLOW_DIGEST: 
-          d947430112722730ba928d0a0403305ec031445dbe763c59d79953516bcc1eaa
+          e281a8691f8023f4006f370c6c41632c5e4bb3e2c31f7857f18a347bda145320
         AB_EVENT: ${{ github.event_name }}
         AB_SCHEDULE: ${{ github.event.schedule || '' }}
         AB_VARIABLES: ${{ toJSON(vars) }}

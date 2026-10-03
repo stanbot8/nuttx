@@ -1,17 +1,17 @@
 {
   "definition_blob_sha1": {
     ".github/workflows/alpha-bridge-ci-verify.yml": "21051178fb840f31162cde1a64943007a2178f3f",
-    ".github/workflows/depends-on-comment.yml": "086558f63058ceb0253276db908ebb5c9c17b223",
-    ".github/workflows/membrowse-comment.yml": "2d2caefec2f30745db1c72a54ac83503a8ae5cae",
-    ".github/workflows/pr_labeler.yml": "be4a336d19c739aeec7808f3bb442d34e1f337b2"
+    ".github/workflows/depends-on-comment.yml": "b4f619b11dcfd69b95b06ad798b0d54c4595182e",
+    ".github/workflows/membrowse-comment.yml": "4e6eed832d9bdc090895b670b3e53e72d9e72f84",
+    ".github/workflows/pr_labeler.yml": "0207e83a3f3a90511e1be53d5f3dbca59e211af1"
   },
   "definition_sha256": {
     ".github/workflows/alpha-bridge-ci-verify.yml": "f1d0d506e1faf2ef9e00102fbf464fa1a74203bf3463e623621402b9de9e8a45",
-    ".github/workflows/depends-on-comment.yml": "58c7d4bfb649aef057363b0e4a8f22b0c5a4dff4e0d2bb76d4c7e63a302cc495",
-    ".github/workflows/membrowse-comment.yml": "662187526dd8c3798bc30a767275f10fd413c568c450bdb6a350144e34c56a34",
-    ".github/workflows/pr_labeler.yml": "db4e8176583bd88aee880b8868489c16f78d242b919b491e12faec287b41ce37"
+    ".github/workflows/depends-on-comment.yml": "1c5e72c297333af9b131aa8da18b9eddb14c9e80062d785c2ff497b8a3246bae",
+    ".github/workflows/membrowse-comment.yml": "b38f349d987057359b97c95501d0456d6525d5023b2801d7b7e16e81016277a9",
+    ".github/workflows/pr_labeler.yml": "f3bf3631d902a18429aabf8082d7b21fa63c35b00f99317cc9594c6b88e65333"
   },
-  "generator_sha256": "d20fb8b8348d1a9a5c6e1057d775b208188196d5c2634d6ec392227f92b995f5",
+  "generator_sha256": "34bc8c1c1eb9b2799c6a06a6f7bd056799561a0342e1ccd9d7ec69c0f000ae82",
   "schema": "alpha-bridge/fork-ci",
   "source_branch": "master",
   "source_commit": "8df6e2a3f45bf4a6cef791fb3cf9fb36e34cdb30",
