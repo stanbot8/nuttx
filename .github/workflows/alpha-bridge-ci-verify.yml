@@ -1,51 +1,19 @@
-name: MemBrowse PR Comment
-
+name: AlphaBridge CI input verification
 on:
-  workflow_run:
-    workflows:
-    - MemBrowse Memory Report
-    types:
-    - completed
+  workflow_dispatch:
+    inputs:
+      probe:
+        type: string
+        required: true
 jobs:
-  comment:
+  check:
     runs-on: ubuntu-latest
-    if: >-
-      ${{ (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion
-      != 'cancelled') && needs.alpha_bridge_inputs.outputs.changed == 'true' }}
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
-
-      with:
-        ref: ${{ (github.event_name == 'schedule' || github.event_name == 
-          'workflow_run') && '8df6e2a3f45bf4a6cef791fb3cf9fb36e34cdb30' || 
-          github.sha }}
-    - uses: actions/setup-python@v7
-      with:
-        python-version: '3.11'
-
-    - name: Install membrowse
-      run: pip install --no-cache-dir membrowse
-
-    - name: Post combined PR comment
-      if: ${{ env.MEMBROWSE_API_KEY != '' }}
-      env:
-        MEMBROWSE_API_KEY: ${{ secrets.MEMBROWSE_API_KEY }}
-        MEMBROWSE_API_URL: ${{ vars.MEMBROWSE_API_URL }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      run: |
-        SUMMARY_ARGS=("$HEAD_SHA" --api-key "$MEMBROWSE_API_KEY" --json)
-        if [ -n "$MEMBROWSE_API_URL" ]; then
-          SUMMARY_ARGS+=(--api-url "$MEMBROWSE_API_URL")
-        fi
-        membrowse summary "${SUMMARY_ARGS[@]}" > /tmp/membrowse-summary.json
-        python -m membrowse.utils.github_comment --summary-json /tmp/membrowse-summary.json
+    - run: echo 'Changed inputs reached the consumer'
     needs:
     - alpha_bridge_inputs
+    if: ${{ (success()) && needs.alpha_bridge_inputs.outputs.changed == 'true' 
+      }}
   alpha_bridge_inputs:
     name: AlphaBridge input check
     runs-on: ubuntu-latest
@@ -65,11 +33,11 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         AB_REPOSITORY: ${{ github.repository }}
         AB_RUN_ID: ${{ github.run_id }}
-        AB_HEAD_SHA: 8df6e2a3f45bf4a6cef791fb3cf9fb36e34cdb30
+        AB_HEAD_SHA: ${{ github.sha }}
         AB_WORKFLOW_DIGEST: 
-          d947430112722730ba928d0a0403305ec031445dbe763c59d79953516bcc1eaa
-        AB_EVENT: ${{ github.event_name }}
-        AB_SCHEDULE: ${{ github.event.schedule || '' }}
+          f2545f7bff2d631118302e97f27dd11878f9bc9967348ae138d23306e7baf973
+        AB_EVENT: schedule
+        AB_SCHEDULE: alpha-bridge verification
         AB_VARIABLES: ${{ toJSON(vars) }}
         AB_INPUTS: ${{ toJSON(inputs) }}
         AB_WORKFLOW_RUN: ${{ toJSON(github.event.workflow_run) }}
