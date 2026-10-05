@@ -1,20 +1,20 @@
 {
   "definition_blob_sha1": {
-    ".github/workflows/alpha-bridge-ci-verify.yml": "21051178fb840f31162cde1a64943007a2178f3f",
-    ".github/workflows/depends-on-comment.yml": "5402862866c60399f7fcffb4fdb3e1d72dee71a1",
-    ".github/workflows/membrowse-comment.yml": "3975aef40362c3d3f8d139fa484649246aa621d7",
-    ".github/workflows/pr_labeler.yml": "1a553ea1a4bc6e046d99dc1ab908b285191a8877"
+    ".github/workflows/alpha-bridge-ci-verify.yml": "d0cf89303388ac1271c908436e9f4bfe75bae884",
+    ".github/workflows/depends-on-comment.yml": "0f7d75200e8e73b5b62e80c645bd39365211e03a",
+    ".github/workflows/membrowse-comment.yml": "d3c9fc6c36e6a3a1384f5a19cdb2f7ef57edad8f",
+    ".github/workflows/pr_labeler.yml": "de4f763aa05a52d05e44b516923406f19412d101"
   },
   "definition_sha256": {
-    ".github/workflows/alpha-bridge-ci-verify.yml": "f1d0d506e1faf2ef9e00102fbf464fa1a74203bf3463e623621402b9de9e8a45",
-    ".github/workflows/depends-on-comment.yml": "776b656397706a1d432ac65e94526d3f45325beadf058d036ca5067c2199f827",
-    ".github/workflows/membrowse-comment.yml": "a941a14305b201e50a6dfc8e8850a56cc834f464f28df31eb9f3d767fc78b19a",
-    ".github/workflows/pr_labeler.yml": "13cb68934cbe4813fc9936d53534e2f319a2ffeb4b1e082fdaf58fa5c8af74e9"
+    ".github/workflows/alpha-bridge-ci-verify.yml": "99e25329cff2a8ae245f2f99850472bdd82f571c3bc33fadfc5ac11b9f29cb7e",
+    ".github/workflows/depends-on-comment.yml": "dfced3b2273a7d1c789e481280db67b2561b83161de77820f0e3f2df309c293f",
+    ".github/workflows/membrowse-comment.yml": "a618f2b48846035fb6b934a305f084fa81dded1ec4e4599a7273060259d1cf36",
+    ".github/workflows/pr_labeler.yml": "115642d7c6a4ddfc0c21d07d4149da2f214985207ffaa4d30efb4beb954fef32"
   },
-  "generator_sha256": "9fe7eb2612d4c4d8436e5a627541cad32d0dcba429639855b5a0a2af04b9729a",
+  "generator_sha256": "8bff038bcb711330ba78bf433a2923d57d4ddfeedd59b8324e44e2a59f6b0389",
   "schema": "alpha-bridge/fork-ci",
   "source_branch": "master",
-  "source_commit": "acc7d9bd3cd833ff6600a522e1415d5b0b405316",
+  "source_commit": "e26d467fab748d329000351728e00aa5e98b721e",
   "source_repository": "apache/nuttx",
   "version": 1,
   "workflows": [
