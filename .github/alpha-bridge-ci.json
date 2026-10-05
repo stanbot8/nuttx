@@ -1,17 +1,35 @@
 {
   "definition_blob_sha1": {
-    ".github/workflows/alpha-bridge-ci-verify.yml": "d0cf89303388ac1271c908436e9f4bfe75bae884",
-    ".github/workflows/depends-on-comment.yml": "0f7d75200e8e73b5b62e80c645bd39365211e03a",
-    ".github/workflows/membrowse-comment.yml": "d3c9fc6c36e6a3a1384f5a19cdb2f7ef57edad8f",
-    ".github/workflows/pr_labeler.yml": "de4f763aa05a52d05e44b516923406f19412d101"
+    ".github/workflows/alpha-bridge-ci-verify.yml": "d19efeb3bd029beb4c50fd874010d2b930d20715",
+    ".github/workflows/arch.yml": "7774294bc3ac5436a3d226e3fc3242ff7645d1fd",
+    ".github/workflows/build.yml": "e83317d8ef8a86ae255abf79821e786b3fa993cf",
+    ".github/workflows/check.yml": "3e46d2f198d423d11388786f4d99a0ce1d345bf8",
+    ".github/workflows/depends-on-comment.yml": "c0ab80356fa404494750863f8a99144074594408",
+    ".github/workflows/doc.yml": "a4d2a270e3bdc6e9eb32c98ed3d13271aa2eee25",
+    ".github/workflows/docker_linux.yml": "ac84003a04d0ea32b338173296212163a8ece47e",
+    ".github/workflows/issue_labeler.yml": "4c4162c927dfba88fff749d7257c4ae30e48adf7",
+    ".github/workflows/labeler.yml": "de90b9e490bf911687d7881f59ab2a0a58632085",
+    ".github/workflows/lint.yml": "3def267bc904b7f261d5842770c092602d322317",
+    ".github/workflows/membrowse-comment.yml": "9e633e0557d66c3ed8f245b4ef73ee1e4dc016f6",
+    ".github/workflows/membrowse-report.yml": "65fe7dcba709a301ebca1d2fdd28056af524096f",
+    ".github/workflows/pr_labeler.yml": "73f461fc2c8e77812a9c0ee4fde2d4364ce7387d"
   },
   "definition_sha256": {
-    ".github/workflows/alpha-bridge-ci-verify.yml": "99e25329cff2a8ae245f2f99850472bdd82f571c3bc33fadfc5ac11b9f29cb7e",
-    ".github/workflows/depends-on-comment.yml": "dfced3b2273a7d1c789e481280db67b2561b83161de77820f0e3f2df309c293f",
-    ".github/workflows/membrowse-comment.yml": "a618f2b48846035fb6b934a305f084fa81dded1ec4e4599a7273060259d1cf36",
-    ".github/workflows/pr_labeler.yml": "115642d7c6a4ddfc0c21d07d4149da2f214985207ffaa4d30efb4beb954fef32"
+    ".github/workflows/alpha-bridge-ci-verify.yml": "8fde9e2f5e1b37bbbb22794427ac6d217d8b18bc857606edd0b072e89c58b436",
+    ".github/workflows/arch.yml": "4ef52fd92e6802e2987ec9f8046edf577d781bc072f14afaa25b17ab925d60d9",
+    ".github/workflows/build.yml": "627a7cc8eca5a6f76a27095219e9d9bcb84ecaa05a67dfe7d9b50f885ce01b55",
+    ".github/workflows/check.yml": "62facb8a3a3e9f12ffbb8050650d64648c34501f1a6f80b8189501ec1fabd52f",
+    ".github/workflows/depends-on-comment.yml": "c1931898f74bcde6a77524b88fc74fd7376f56a191aff8765b40221c7f522c84",
+    ".github/workflows/doc.yml": "942570c589c7662569036183c02ae859a60d563ceb797b95acaedd71aa30a13e",
+    ".github/workflows/docker_linux.yml": "1bdecb19cd82664e08f483d7eb73b4d54d6146fba7b6cb725a7f7cc9e1c5a29f",
+    ".github/workflows/issue_labeler.yml": "8c085e87c01e5ed96319fad2f4df85bc4250250231513e9c4108582551791e80",
+    ".github/workflows/labeler.yml": "864d1ffd79d4114989d560648da1391ff594452c3b2d0ba69d8693fa8eb1ca25",
+    ".github/workflows/lint.yml": "49b3e31206e19ab4b5886e5ce620c8db19e109a8c5e1c160355d92a316fe645d",
+    ".github/workflows/membrowse-comment.yml": "f7740eb4eea35897e6ab747e62b8db08f9a70e8e9fe898a1524d3c3031a5595f",
+    ".github/workflows/membrowse-report.yml": "9133929548c328ab98b92ab473035cc5ab5f37dd7c1917ce87c7780254af0066",
+    ".github/workflows/pr_labeler.yml": "0abd501ea6859b628c46f8cf68a9ffffc08a6e61d962f63825fdaaa0e4a4b796"
   },
-  "generator_sha256": "8bff038bcb711330ba78bf433a2923d57d4ddfeedd59b8324e44e2a59f6b0389",
+  "generator_sha256": "f9d11fba5b604bac754f7ab7e40ccde549adf8e029da2ca91ed14e9ab94c0775",
   "schema": "alpha-bridge/fork-ci",
   "source_branch": "master",
   "source_commit": "e26d467fab748d329000351728e00aa5e98b721e",
@@ -19,8 +37,17 @@
   "version": 1,
   "workflows": [
     ".github/workflows/alpha-bridge-ci-verify.yml",
+    ".github/workflows/arch.yml",
+    ".github/workflows/build.yml",
+    ".github/workflows/check.yml",
     ".github/workflows/depends-on-comment.yml",
+    ".github/workflows/doc.yml",
+    ".github/workflows/docker_linux.yml",
+    ".github/workflows/issue_labeler.yml",
+    ".github/workflows/labeler.yml",
+    ".github/workflows/lint.yml",
     ".github/workflows/membrowse-comment.yml",
+    ".github/workflows/membrowse-report.yml",
     ".github/workflows/pr_labeler.yml"
   ]
 }
