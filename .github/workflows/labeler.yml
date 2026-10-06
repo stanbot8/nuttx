@@ -18,9 +18,9 @@
 # (pr_labeler.yml), because this "pull_request" trigger has read-only
 # permission. Don't use "pull_request_target", it's unsafe.
 # See https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=321719166#GitHubActionsSecurity-Buildstriggeredwithpull_request_target
-name: Pull Request Labeler
+name: "Pull Request Labeler"
 on:
-- pull_request
+  - pull_request
 
 jobs:
   labeler:
@@ -32,126 +32,126 @@ jobs:
     steps:
       # Checkout one file from our trusted source: .github/labeler.yml
       # Never checkout and execute any untrusted code from the PR.
-    - name: Checkout labeler config
-      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0    # v7.0.0
-      with:
-        repository: apache/nuttx
-        ref: master
-        path: labeler
-        fetch-depth: 1
-        persist-credentials: false
-        sparse-checkout: .github/labeler.yml
-        sparse-checkout-cone-mode: false
+      - name: Checkout labeler config
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          repository: apache/nuttx
+          ref: master
+          path: labeler
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: .github/labeler.yml
+          sparse-checkout-cone-mode: false
 
       # Fetch the updated PR filenames. Compute the Size Label and Arch Labels.
-    - name: Compute PR labels
-      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3    # v9.0.0
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const owner = context.repo.owner;
-          const repo = context.repo.repo;
-          const pull_number = context.issue.number;
+      - name: Compute PR labels
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.issue.number;
 
-          // Fetch the array of updated PR filenames:
-          // { status: 'added',    filename: 'arch/arm/test.txt',              additions: 3, deletions: 0,    changes: 3 }
-          // { status: 'removed',  filename: 'Documentation/legacy_README.md', additions: 0, deletions: 2531, changes: 2531 }
-          // { status: 'modified', filename: 'Documentation/security.rst',     additions: 1, deletions: 0,    changes: 1 }
-          const listFilesOptions = github.rest.pulls.listFiles
-            .endpoint.merge({ owner, repo, pull_number });
-          const listFilesResponse = await github.paginate(listFilesOptions);
+            // Fetch the array of updated PR filenames:
+            // { status: 'added',    filename: 'arch/arm/test.txt',              additions: 3, deletions: 0,    changes: 3 }
+            // { status: 'removed',  filename: 'Documentation/legacy_README.md', additions: 0, deletions: 2531, changes: 2531 }
+            // { status: 'modified', filename: 'Documentation/security.rst',     additions: 1, deletions: 0,    changes: 1 }
+            const listFilesOptions = github.rest.pulls.listFiles
+              .endpoint.merge({ owner, repo, pull_number });
+            const listFilesResponse = await github.paginate(listFilesOptions);
 
-          // Sum up the number of lines changed
-          const sizeFiles = listFilesResponse
-            .filter(f => (f.status != 'removed'));  // Ignore deleted files
-          var linesChanged = 0;
-          for (const file of sizeFiles) {
-            linesChanged += file.changes;
-          }
-          console.log({ linesChanged });
-
-          // Compute the Size Label
-          const sizeLabel =
-            (linesChanged   <=   10) ? 'Size: XS'
-            : (linesChanged <=  100) ? 'Size: S'
-            : (linesChanged <=  500) ? 'Size: M'
-            : (linesChanged <= 1000) ? 'Size: L'
-            : 'Size: XL';
-          var prLabels = [ sizeLabel ];
-
-          // Parse the Arch Label Patterns in .github/labeler.yml. Condense into:
-          // "Arch: arm":
-          // - any-glob-to-any-file: 'arch/arm/**'
-          // - any-glob-to-any-file: ...
-          const fs = require('fs');
-          const config = fs.readFileSync('labeler/.github/labeler.yml', 'utf8')
-            .split('\n')             // Split by newline
-            .map(s => s.trim())      // Remove leading and trailing spaces
-            .filter(s => (s != ''))  // Remove empty lines
-            .filter(s => !s.startsWith('#'))                  // Remove comments
-            .filter(s => !s.startsWith('- changed-files:'));  // Remove "changed-files"
-
-          // Convert the Arch Label Patterns from config to archLabels.
-          // archLabels will contain the mappings for Arch Label and Filename Pattern:
-          // { label: "Arch: arm",   pattern: "arch/arm/.*"   },
-          // { label: "Arch: arm64", pattern: "arch/arm64/.*" }, ...
-          var archLabels = [];
-          var label = "";
-          for (const c of config) {
-            // Get the Arch Label
-            if (c.startsWith('"')) {    // "Arch: arm":
-              label = c.split('"')[1];  // Arch: arm
-
-            } else if (c.startsWith('- any-glob-to-any-file:')) {  // - any-glob-to-any-file: 'arch/arm/**'
-              // Convert the Glob Pattern to Regex Pattern
-              const pattern = c.split("'")[1]      // arch/arm/**
-                .split('.').join('\\.')            // .  becomes \.
-                .split('*').join('[^/]*')          // *  becomes [^/]*
-                .split('[^/]*[^/]*').join('.*');   // ** becomes .*
-              archLabels.push({
-                label,                        // Arch: arm
-                pattern: '^' + pattern + '$'  // Match the Line Start and Line End
-              });
-
-            } else {
-              // We don't support all rules of `actions/labeler`
-              throw new Error('.github/labeler.yml should contain only changed-files and any-glob-to-any-file, not: ' + c);
+            // Sum up the number of lines changed
+            const sizeFiles = listFilesResponse
+              .filter(f => (f.status != 'removed'));  // Ignore deleted files
+            var linesChanged = 0;
+            for (const file of sizeFiles) {
+              linesChanged += file.changes;
             }
-          }
+            console.log({ linesChanged });
 
-          // Search the filenames for matching Arch Labels
-          for (const archLabel of archLabels) {
-            if (prLabels.includes(archLabel.label)) {
-              break;
-            }
-            for (const file of listFilesResponse) {
-              const re = new RegExp(archLabel.pattern);
-              const match = re.test(file.filename);
-              if (match && !prLabels.includes(archLabel.label)) {
-                prLabels.push(archLabel.label);
-                break;
+            // Compute the Size Label
+            const sizeLabel =
+              (linesChanged   <=   10) ? 'Size: XS'
+              : (linesChanged <=  100) ? 'Size: S'
+              : (linesChanged <=  500) ? 'Size: M'
+              : (linesChanged <= 1000) ? 'Size: L'
+              : 'Size: XL';
+            var prLabels = [ sizeLabel ];
+
+            // Parse the Arch Label Patterns in .github/labeler.yml. Condense into:
+            // "Arch: arm":
+            // - any-glob-to-any-file: 'arch/arm/**'
+            // - any-glob-to-any-file: ...
+            const fs = require('fs');
+            const config = fs.readFileSync('labeler/.github/labeler.yml', 'utf8')
+              .split('\n')             // Split by newline
+              .map(s => s.trim())      // Remove leading and trailing spaces
+              .filter(s => (s != ''))  // Remove empty lines
+              .filter(s => !s.startsWith('#'))                  // Remove comments
+              .filter(s => !s.startsWith('- changed-files:'));  // Remove "changed-files"
+
+            // Convert the Arch Label Patterns from config to archLabels.
+            // archLabels will contain the mappings for Arch Label and Filename Pattern:
+            // { label: "Arch: arm",   pattern: "arch/arm/.*"   },
+            // { label: "Arch: arm64", pattern: "arch/arm64/.*" }, ...
+            var archLabels = [];
+            var label = "";
+            for (const c of config) {
+              // Get the Arch Label
+              if (c.startsWith('"')) {    // "Arch: arm":
+                label = c.split('"')[1];  // Arch: arm
+
+              } else if (c.startsWith('- any-glob-to-any-file:')) {  // - any-glob-to-any-file: 'arch/arm/**'
+                // Convert the Glob Pattern to Regex Pattern
+                const pattern = c.split("'")[1]      // arch/arm/**
+                  .split('.').join('\\.')            // .  becomes \.
+                  .split('*').join('[^/]*')          // *  becomes [^/]*
+                  .split('[^/]*[^/]*').join('.*');   // ** becomes .*
+                archLabels.push({
+                  label,                        // Arch: arm
+                  pattern: '^' + pattern + '$'  // Match the Line Start and Line End
+                });
+
+              } else {
+                // We don't support all rules of `actions/labeler`
+                throw new Error('.github/labeler.yml should contain only changed-files and any-glob-to-any-file, not: ' + c);
               }
             }
-          }
-          console.log({ prLabels });
 
-          // Save the PR Number and PR Labels into a PR Artifact
-          // e.g. 'Size: XS\nArch: avr\n'
-          const dir = 'pr';
-          fs.mkdirSync(dir);
-          fs.writeFileSync(dir + '/pr-id.txt', pull_number + '\n');
-          fs.writeFileSync(dir + '/pr-labels.txt', prLabels.join('\n') + '\n');
+            // Search the filenames for matching Arch Labels
+            for (const archLabel of archLabels) {
+              if (prLabels.includes(archLabel.label)) {
+                break;
+              }
+              for (const file of listFilesResponse) {
+                const re = new RegExp(archLabel.pattern);
+                const match = re.test(file.filename);
+                if (match && !prLabels.includes(archLabel.label)) {
+                  prLabels.push(archLabel.label);
+                  break;
+                }
+              }
+            }
+            console.log({ prLabels });
+
+            // Save the PR Number and PR Labels into a PR Artifact
+            // e.g. 'Size: XS\nArch: avr\n'
+            const dir = 'pr';
+            fs.mkdirSync(dir);
+            fs.writeFileSync(dir + '/pr-id.txt', pull_number + '\n');
+            fs.writeFileSync(dir + '/pr-labels.txt', prLabels.join('\n') + '\n');
 
       # Upload the PR Artifact as pr.zip
-    - name: Upload PR artifact
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
-      with:
-        name: pr
-        path: pr/
+      - name: Upload PR artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: pr
+          path: pr/
     needs:
-    - alpha_bridge_inputs
-    if: ${{ (success()) && needs.alpha_bridge_inputs.outputs.changed == 'true' 
-      }}
+      - alpha_bridge_inputs
+    if: |-
+      ${{ (success()) && needs.alpha_bridge_inputs.outputs.changed == 'true' }}
   alpha_bridge_inputs:
     name: CI input check
     runs-on: ubuntu-latest
@@ -165,115 +165,116 @@ jobs:
     outputs:
       changed: ${{ steps.identity.outputs.changed }}
     steps:
-    - id: identity
-      name: Check source, workflow, variables, and runner inputs
-      env:
-        GH_TOKEN: ${{ github.token }}
-        AB_REPOSITORY: ${{ github.repository }}
-        AB_RUN_ID: ${{ github.run_id }}
-        AB_HEAD_SHA: ${{ (github.event_name == 'schedule' || github.event_name 
-          == 'workflow_run') && 'e26d467fab748d329000351728e00aa5e98b721e' || 
-          github.sha }}
-        AB_REF: ${{ (github.event_name == 'schedule' || github.event_name == 
-          'workflow_run') && 'refs/heads/master' || github.ref }}
-        AB_WORKFLOW_DIGEST: 
-          e2f605578b98ba71503e3eae9de96daf39a148b39312c9f2fe36621d1ff4b16c
-        AB_EVENT: ${{ github.event_name }}
-        AB_SCHEDULE: ${{ github.event.schedule || '' }}
-        AB_VARIABLES: ${{ toJSON(vars) }}
-        AB_INPUTS: ${{ toJSON(inputs) }}
-        AB_WORKFLOW_RUN: ${{ toJSON(github.event.workflow_run) }}
-      shell: bash
-      run: "python3 - <<'ALPHA_BRIDGE_CI_PY'\n\"\"\"Native automatic-CI input check,
-        embedded in the owned fork configuration.\"\"\"\n\nfrom __future__ import
-        annotations\n\nimport base64\nimport hashlib\nimport json\nimport os\nimport
-        re\nimport urllib.parse\nimport urllib.request\n\nINPUT_CHECK_NAMES = (\"\
-        CI input check\", \"AlphaBridge input check\")\nINPUT_IDENTITY_PREFIXES =
-        (\"CI input identity \", \"AlphaBridge input identity \")\n\n\ndef input_identity(job):\n\
-        \    for step in job.get(\"steps\", []):\n        if step.get(\"conclusion\"\
-        ) != \"success\":\n            continue\n        name = step.get(\"name\"\
-        , \"\")\n        for prefix in INPUT_IDENTITY_PREFIXES:\n            if name.startswith(prefix):\n\
-        \                identity = name.removeprefix(prefix)\n                if
-        re.fullmatch(r\"[0-9a-f]{64}\", identity):\n                    return identity\n\
-        \    return \"\"\n\n\ndef parent_has_work(get, repository, parent):\n    if
-        (\n        not parent\n        or parent.get(\"head_branch\") != \"alpha-bridge-ci\"\
-        \n        or parent.get(\"status\") != \"completed\"\n    ):\n        return
-        True\n    sha = parent[\"head_sha\"]\n    if re.fullmatch(r\"[0-9a-f]{40}\"\
-        , sha) is None:\n        raise ValueError(\"parent workflow has no exact configuration
-        commit\")\n    record = get(f\"/repos/{repository}\")\n    marker_file = get(f\"\
-        /repos/{repository}/contents/.github/alpha-bridge-ci.json?ref={sha}\")\n \
-        \   marker = json.loads(base64.b64decode(marker_file[\"content\"]))\n    if
-        (\n        record.get(\"fork\") is not True\n        or marker.get(\"schema\"\
-        ) != \"alpha-bridge/fork-ci\"\n        or marker.get(\"source_repository\"\
-        ) != record.get(\"parent\", {}).get(\"full_name\")\n    ):\n        raise
-        ValueError(\"parent CI configuration has no verified fork ownership\")\n \
-        \   path = parent[\"path\"].split(\"@\", 1)[0]\n    if not path.startswith(\"\
-        .github/workflows/\") or \"/\" in path.removeprefix(\".github/workflows/\"\
-        ):\n        raise ValueError(\"parent workflow path is outside its configuration
-        owner\")\n    definition = get(f\"/repos/{repository}/contents/{urllib.parse.quote(path,
-        safe='/')}?ref={sha}\")\n    if hashlib.sha256(base64.b64decode(definition[\"\
-        content\"])).hexdigest() != marker.get(\n        \"definition_sha256\", {}\n\
-        \    ).get(path):\n        raise ValueError(\"parent workflow differs from
-        its owned definition\")\n    if path == \".github/workflows/alpha-bridge-ci-verify.yml\"\
-        :\n        return False\n    jobs = []\n    page = 1\n    while True:\n  \
-        \      values = get(\n            f\"/repos/{repository}/actions/runs/{parent['id']}/jobs?per_page=100&page={page}\"\
-        \n        )[\"jobs\"]\n        jobs.extend(values)\n        if len(values)
-        < 100:\n            break\n        page += 1\n    guards = [\n        job\n\
-        \        for job in jobs\n        if job.get(\"name\") in INPUT_CHECK_NAMES\n\
-        \        and job.get(\"conclusion\") == \"success\"\n        and input_identity(job)\n\
-        \    ]\n    return not guards or any(\n        job not in guards and job.get(\"\
-        conclusion\") != \"skipped\" for job in jobs\n    )\n\n\ndef changed(get,
-        *, repository, run_id, identity, job_name):\n    current = get(f\"/repos/{repository}/actions/runs/{run_id}\"\
-        )\n    event = current[\"event\"]\n    page = 1\n    while True:\n       \
-        \ # Filter locally: GitHub caps filtered searches at 1,000 results.\n    \
-        \    query = urllib.parse.urlencode({\"per_page\": 100, \"page\": page})\n\
-        \        runs = get(f\"/repos/{repository}/actions/workflows/{current['workflow_id']}/runs?{query}\"\
-        )\n        for run in runs[\"workflow_runs\"]:\n            if run[\"id\"\
-        ] == run_id:\n                continue\n            if run.get(\"head_branch\"\
-        ) != current[\"head_branch\"] or run.get(\"event\") != event:\n          \
-        \      continue\n            job_page = 1\n            while True:\n     \
-        \           jobs = get(\n                    f\"/repos/{repository}/actions/runs/{run['id']}/jobs?per_page=100&page={job_page}\"\
-        \n                )[\"jobs\"]\n                for job in jobs:\n        \
-        \            if (\n                        (\n                           \
-        \ job[\"name\"] in INPUT_CHECK_NAMES\n                            if job_name
-        in INPUT_CHECK_NAMES\n                            else job[\"name\"] == job_name\n\
-        \                        )\n                        and job.get(\"status\"\
-        ) == \"completed\"\n                        and job.get(\"conclusion\") ==
-        \"success\"\n                        and input_identity(job) == identity\n\
-        \                    ):\n                        return False\n          \
-        \      if len(jobs) < 100:\n                    break\n                job_page
-        += 1\n        if len(runs[\"workflow_runs\"]) < 100:\n            return True\n\
-        \        page += 1\n\n\ndef main():\n    event = os.environ[\"AB_EVENT\"]\n\
-        \    event_payload = None\n    if event not in {\"schedule\", \"workflow_run\"\
-        }:\n        with open(os.environ[\"GITHUB_EVENT_PATH\"], encoding=\"utf-8\"\
-        ) as payload_file:\n            event_payload = json.load(payload_file)\n\
-        \    inputs = {\n        \"source_commit\": os.environ[\"AB_HEAD_SHA\"],\n\
-        \        \"source_ref\": os.environ[\"AB_REF\"],\n        \"workflow_definition\"\
-        : os.environ[\"AB_WORKFLOW_DIGEST\"],\n        \"event\": event,\n       \
-        \ \"event_payload\": event_payload,\n        \"schedule\": os.environ[\"AB_SCHEDULE\"\
-        ],\n        \"variables\": json.loads(os.environ[\"AB_VARIABLES\"]),\n   \
-        \     \"inputs\": json.loads(os.environ[\"AB_INPUTS\"]),\n        \"runner_image\"\
-        : [os.environ.get(\"ImageOS\", \"\"), os.environ.get(\"ImageVersion\", \"\"\
-        )],\n        \"producer\": json.loads(os.environ.get(\"AB_WORKFLOW_RUN\",
-        \"null\")),\n    }\n    identity = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()\n\
-        \n    def get(path):\n        request = urllib.request.Request(\n        \
-        \    \"https://api.github.com\" + path,\n            headers={\n         \
-        \       \"Authorization\": \"Bearer \" + os.environ[\"GH_TOKEN\"],\n     \
-        \           \"Accept\": \"application/vnd.github+json\",\n               \
-        \ \"X-GitHub-Api-Version\": \"2026-03-10\",\n            },\n        )\n \
-        \       with urllib.request.urlopen(request, timeout=60) as response:\n  \
-        \          return json.load(response)\n\n    manual = event == \"workflow_dispatch\"\
-        \ or int(os.environ[\"GITHUB_RUN_ATTEMPT\"]) > 1\n    should_run = manual
-        or (\n        (\n            inputs[\"event\"] != \"workflow_run\"\n     \
-        \       or parent_has_work(get, os.environ[\"AB_REPOSITORY\"], inputs[\"producer\"\
-        ])\n        )\n        and changed(\n            get,\n            repository=os.environ[\"\
-        AB_REPOSITORY\"],\n            run_id=int(os.environ[\"AB_RUN_ID\"]),\n  \
-        \          identity=identity,\n            job_name=\"CI input check\",\n\
-        \        )\n    )\n    with open(os.environ[\"GITHUB_OUTPUT\"], \"a\", encoding=\"\
-        utf-8\") as output:\n        output.write(f\"digest={identity}\\nchanged={str(should_run).lower()}\\\
-        n\")\n    print(\n        \"Explicit CI run requested\"\n        if manual\n\
-        \        else \"CI inputs changed\"\n        if should_run\n        else \"\
-        CI inputs unchanged; build and test jobs skipped\"\n    )\n\n\nif __name__
-        == \"__main__\":\n    main()\n\nALPHA_BRIDGE_CI_PY\n"
-    - name: CI input identity ${{ steps.identity.outputs.digest }}
-      run: echo 'Input identity recorded'
+      - id: identity
+        name: Check source, workflow, variables, and runner inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AB_REPOSITORY: ${{ github.repository }}
+          AB_RUN_ID: ${{ github.run_id }}
+          AB_HEAD_SHA: ${{ (github.event_name == 'schedule' || github.event_name
+            == 'workflow_run') && 'e26d467fab748d329000351728e00aa5e98b721e' || 
+            github.sha }}
+          AB_REF: ${{ (github.event_name == 'schedule' || github.event_name == 
+            'workflow_run') && 'refs/heads/master' || github.ref }}
+          AB_WORKFLOW_DIGEST: 
+            172322dfe138ae0cae20ab88aa21d6066d219acad94f3a0b3e465b2b436d9e92
+          AB_EVENT: ${{ github.event_name }}
+          AB_SCHEDULE: ${{ github.event.schedule || '' }}
+          AB_VARIABLES: ${{ toJSON(vars) }}
+          AB_INPUTS: ${{ toJSON(inputs) }}
+          AB_WORKFLOW_RUN: ${{ toJSON(github.event.workflow_run) }}
+        shell: bash
+        run: "python3 - <<'ALPHA_BRIDGE_CI_PY'\n\"\"\"Native automatic-CI input check,
+          embedded in the owned fork configuration.\"\"\"\n\nfrom __future__ import
+          annotations\n\nimport base64\nimport hashlib\nimport json\nimport os\nimport
+          re\nimport urllib.parse\nimport urllib.request\n\nINPUT_CHECK_NAMES = (\"\
+          CI input check\", \"AlphaBridge input check\")\nINPUT_IDENTITY_PREFIXES
+          = (\"CI input identity \", \"AlphaBridge input identity \")\n\n\ndef input_identity(job):\n\
+          \    for step in job.get(\"steps\", []):\n        if step.get(\"conclusion\"\
+          ) != \"success\":\n            continue\n        name = step.get(\"name\"\
+          , \"\")\n        for prefix in INPUT_IDENTITY_PREFIXES:\n            if
+          name.startswith(prefix):\n                identity = name.removeprefix(prefix)\n\
+          \                if re.fullmatch(r\"[0-9a-f]{64}\", identity):\n       \
+          \             return identity\n    return \"\"\n\n\ndef parent_has_work(get,
+          repository, parent):\n    if (\n        not parent\n        or parent.get(\"\
+          head_branch\") != \"alpha-bridge-ci\"\n        or parent.get(\"status\"\
+          ) != \"completed\"\n    ):\n        return True\n    sha = parent[\"head_sha\"\
+          ]\n    if re.fullmatch(r\"[0-9a-f]{40}\", sha) is None:\n        raise ValueError(\"\
+          parent workflow has no exact configuration commit\")\n    record = get(f\"\
+          /repos/{repository}\")\n    marker_file = get(f\"/repos/{repository}/contents/.github/alpha-bridge-ci.json?ref={sha}\"\
+          )\n    marker = json.loads(base64.b64decode(marker_file[\"content\"]))\n\
+          \    if (\n        record.get(\"fork\") is not True\n        or marker.get(\"\
+          schema\") != \"alpha-bridge/fork-ci\"\n        or marker.get(\"source_repository\"\
+          ) != record.get(\"parent\", {}).get(\"full_name\")\n    ):\n        raise
+          ValueError(\"parent CI configuration has no verified fork ownership\")\n\
+          \    path = parent[\"path\"].split(\"@\", 1)[0]\n    if not path.startswith(\"\
+          .github/workflows/\") or \"/\" in path.removeprefix(\".github/workflows/\"\
+          ):\n        raise ValueError(\"parent workflow path is outside its configuration
+          owner\")\n    definition = get(f\"/repos/{repository}/contents/{urllib.parse.quote(path,
+          safe='/')}?ref={sha}\")\n    if hashlib.sha256(base64.b64decode(definition[\"\
+          content\"])).hexdigest() != marker.get(\n        \"definition_sha256\",
+          {}\n    ).get(path):\n        raise ValueError(\"parent workflow differs
+          from its owned definition\")\n    if path == \".github/workflows/alpha-bridge-ci-verify.yml\"\
+          :\n        return False\n    jobs = []\n    page = 1\n    while True:\n\
+          \        values = get(\n            f\"/repos/{repository}/actions/runs/{parent['id']}/jobs?per_page=100&page={page}\"\
+          \n        )[\"jobs\"]\n        jobs.extend(values)\n        if len(values)
+          < 100:\n            break\n        page += 1\n    guards = [\n        job\n\
+          \        for job in jobs\n        if job.get(\"name\") in INPUT_CHECK_NAMES\n\
+          \        and job.get(\"conclusion\") == \"success\"\n        and input_identity(job)\n\
+          \    ]\n    return not guards or any(\n        job not in guards and job.get(\"\
+          conclusion\") != \"skipped\" for job in jobs\n    )\n\n\ndef changed(get,
+          *, repository, run_id, identity, job_name):\n    current = get(f\"/repos/{repository}/actions/runs/{run_id}\"\
+          )\n    event = current[\"event\"]\n    page = 1\n    while True:\n     \
+          \   # Filter locally: GitHub caps filtered searches at 1,000 results.\n\
+          \        query = urllib.parse.urlencode({\"per_page\": 100, \"page\": page})\n\
+          \        runs = get(f\"/repos/{repository}/actions/workflows/{current['workflow_id']}/runs?{query}\"\
+          )\n        for run in runs[\"workflow_runs\"]:\n            if run[\"id\"\
+          ] == run_id:\n                continue\n            if run.get(\"head_branch\"\
+          ) != current[\"head_branch\"] or run.get(\"event\") != event:\n        \
+          \        continue\n            job_page = 1\n            while True:\n \
+          \               jobs = get(\n                    f\"/repos/{repository}/actions/runs/{run['id']}/jobs?per_page=100&page={job_page}\"\
+          \n                )[\"jobs\"]\n                for job in jobs:\n      \
+          \              if (\n                        (\n                       \
+          \     job[\"name\"] in INPUT_CHECK_NAMES\n                            if
+          job_name in INPUT_CHECK_NAMES\n                            else job[\"name\"\
+          ] == job_name\n                        )\n                        and job.get(\"\
+          status\") == \"completed\"\n                        and job.get(\"conclusion\"\
+          ) == \"success\"\n                        and input_identity(job) == identity\n\
+          \                    ):\n                        return False\n        \
+          \        if len(jobs) < 100:\n                    break\n              \
+          \  job_page += 1\n        if len(runs[\"workflow_runs\"]) < 100:\n     \
+          \       return True\n        page += 1\n\n\ndef main():\n    event = os.environ[\"\
+          AB_EVENT\"]\n    event_payload = None\n    if event not in {\"schedule\"\
+          , \"workflow_run\"}:\n        with open(os.environ[\"GITHUB_EVENT_PATH\"\
+          ], encoding=\"utf-8\") as payload_file:\n            event_payload = json.load(payload_file)\n\
+          \    inputs = {\n        \"source_commit\": os.environ[\"AB_HEAD_SHA\"],\n\
+          \        \"source_ref\": os.environ[\"AB_REF\"],\n        \"workflow_definition\"\
+          : os.environ[\"AB_WORKFLOW_DIGEST\"],\n        \"event\": event,\n     \
+          \   \"event_payload\": event_payload,\n        \"schedule\": os.environ[\"\
+          AB_SCHEDULE\"],\n        \"variables\": json.loads(os.environ[\"AB_VARIABLES\"\
+          ]),\n        \"inputs\": json.loads(os.environ[\"AB_INPUTS\"]),\n      \
+          \  \"runner_image\": [os.environ.get(\"ImageOS\", \"\"), os.environ.get(\"\
+          ImageVersion\", \"\")],\n        \"producer\": json.loads(os.environ.get(\"\
+          AB_WORKFLOW_RUN\", \"null\")),\n    }\n    identity = hashlib.sha256(json.dumps(inputs,
+          sort_keys=True).encode()).hexdigest()\n\n    def get(path):\n        request
+          = urllib.request.Request(\n            \"https://api.github.com\" + path,\n\
+          \            headers={\n                \"Authorization\": \"Bearer \" +
+          os.environ[\"GH_TOKEN\"],\n                \"Accept\": \"application/vnd.github+json\"\
+          ,\n                \"X-GitHub-Api-Version\": \"2026-03-10\",\n         \
+          \   },\n        )\n        with urllib.request.urlopen(request, timeout=60)
+          as response:\n            return json.load(response)\n\n    manual = event
+          == \"workflow_dispatch\" or int(os.environ[\"GITHUB_RUN_ATTEMPT\"]) > 1\n\
+          \    should_run = manual or (\n        (\n            inputs[\"event\"]
+          != \"workflow_run\"\n            or parent_has_work(get, os.environ[\"AB_REPOSITORY\"\
+          ], inputs[\"producer\"])\n        )\n        and changed(\n            get,\n\
+          \            repository=os.environ[\"AB_REPOSITORY\"],\n            run_id=int(os.environ[\"\
+          AB_RUN_ID\"]),\n            identity=identity,\n            job_name=\"\
+          CI input check\",\n        )\n    )\n    with open(os.environ[\"GITHUB_OUTPUT\"\
+          ], \"a\", encoding=\"utf-8\") as output:\n        output.write(f\"digest={identity}\\\
+          nchanged={str(should_run).lower()}\\n\")\n    print(\n        \"Explicit
+          CI run requested\"\n        if manual\n        else \"CI inputs changed\"\
+          \n        if should_run\n        else \"CI inputs unchanged; build and test
+          jobs skipped\"\n    )\n\n\nif __name__ == \"__main__\":\n    main()\n\n\
+          ALPHA_BRIDGE_CI_PY\n"
+      - name: CI input identity ${{ steps.identity.outputs.digest }}
+        run: echo 'Input identity recorded'

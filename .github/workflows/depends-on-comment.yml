@@ -17,7 +17,7 @@ name: Depends-On Comment
 
 on:
   workflow_run:
-    workflows: [Build]
+    workflows: ["Build"]
     types: [completed]
 
 permissions:
@@ -31,184 +31,184 @@ env:
 
 jobs:
   comment:
-    if: ${{ (github.event.workflow_run.event == 'pull_request') && 
-      needs.alpha_bridge_inputs.outputs.changed == 'true' }}
+    if: |-
+      ${{ (github.event.workflow_run.event == 'pull_request') && needs.alpha_bridge_inputs.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
-    - name: Download depends-on report
-      id: dl
-      uses: actions/download-artifact@v8
-      with:
-        name: depends-on-report
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path: report
-      continue-on-error: true
+      - name: Download depends-on report
+        id: dl
+        uses: actions/download-artifact@v8
+        with:
+          name: depends-on-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: report
+        continue-on-error: true
 
-    - name: Comment on the PR
-      if: ${{ steps.dl.outcome == 'success' }}
-      uses: actions/github-script@v9
-      with:
-        script: |
-          const fs = require('fs');
-          const owner = context.repo.owner;
-          const repo = context.repo.repo;
-          const allow = [process.env.NUTTX_REPO, process.env.APPS_REPO].filter(Boolean);
+      - name: Comment on the PR
+        if: ${{ steps.dl.outcome == 'success' }}
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const allow = [process.env.NUTTX_REPO, process.env.APPS_REPO].filter(Boolean);
 
-          // Validate the untrusted Build artifact's structure and safe
-          // rendering fields without executing fork code.
-          let report;
-          try {
-            report = JSON.parse(fs.readFileSync('report/result.json', 'utf8'));
-          } catch (e) {
-            core.info('No valid depends-on report; nothing to comment.');
-            return;
-          }
-
-          if (report.version !== 1) {
-            core.info('Unexpected report version; skipping.');
-            return;
-          }
-          const status = report.status;
-          if (status !== 'ok' && status !== 'invalid' && status !== 'failed') {
-            core.info(`Report status='${status}'; nothing to comment.`);
-            return;
-          }
-
-          // Match the Python parser's numeric and repository limits. Reject
-          // the whole report instead of silently dropping unsafe entries.
-          const isSafeNumber = (n) => Number.isSafeInteger(n) && n > 0;
-          const rawDeps = Array.isArray(report.dependencies) ? report.dependencies : null;
-          if (rawDeps === null) {
-            core.info('Report dependencies are not an array; skipping.');
-            return;
-          }
-          const deps = rawDeps.filter((d) => d && typeof d.repo === 'string'
-            && allow.includes(d.repo) && isSafeNumber(d.number));
-          if (deps.length !== rawDeps.length) {
-            core.info('Report contains an invalid dependency entry; skipping.');
-            return;
-          }
-          const keys = deps.map((d) => `${d.repo}#${d.number}`);
-          if (new Set(keys).size !== keys.length) {
-            core.info('Report contains duplicate dependencies; skipping.');
-            return;
-          }
-          if (status === 'invalid' && deps.length !== 0) {
-            core.info('status=invalid but dependencies are present; skipping.');
-            return;
-          }
-          const isFullSha = (s) => typeof s === 'string' && /^[0-9a-f]{40}$/i.test(s);
-          if (status === 'ok' && !deps.every((d) => isFullSha(d.head_sha))) {
-            core.info('status=ok but a full dependency head SHA is missing; skipping.');
-            return;
-          }
-
-          // Bind the report to both the triggering run and the PR's current
-          // head. Stale, cancelled, or mismatched reports must not comment.
-          const headSha = context.payload.workflow_run.head_sha;
-          if (report.head_sha !== headSha) {
-            core.info('Report head_sha does not match workflow_run head_sha; skipping.');
-            return;
-          }
-          const claimed = Number(report.pr_number);
-
-          let prNum = null;
-          if (Number.isSafeInteger(claimed) && claimed > 0) {
+            // Validate the untrusted Build artifact's structure and safe
+            // rendering fields without executing fork code.
+            let report;
             try {
-              const { data: pr } = await github.rest.pulls.get({
-                owner, repo, pull_number: claimed });
-              if (pr.head.sha === headSha) prNum = claimed;
+              report = JSON.parse(fs.readFileSync('report/result.json', 'utf8'));
             } catch (e) {
-              prNum = null;
-            }
-          }
-          if (prNum === null) {
-            core.info(
-              "workflow_run head_sha does not match the claimed PR's current " +
-              'head (stale/cancelled run, or artifact mismatch); skipping comment.');
-            return;
-          }
-
-          // Preserve one idempotent comment per Build run.
-          const runId = context.payload.workflow_run.id;
-          const marker = `<!-- nuttx-depends-on-bot run-${runId} -->`;
-          const runUrl = context.payload.workflow_run.html_url;
-          const shortSha = (s) =>
-            (typeof s === 'string' && /^[0-9a-f]{7,40}$/i.test(s)) ? ` @ ${s.slice(0, 10)}` : '';
-
-          let body;
-          if (status === 'ok') {
-            if (deps.length === 0) {
-              core.info('status=ok but no valid dependencies after validation; skipping.');
+              core.info('No valid depends-on report; nothing to comment.');
               return;
             }
-            const list = deps
-              .map((d) => `- https://github.com/${d.repo}/pull/${d.number}${shortSha(d.head_sha)}`)
-              .join('\n');
-            body =
-              `${marker}\n` +
-              `### 🔗 Cross-repo PR dependencies\n\n` +
-              `The read-only Build run reported the following dependent ` +
-              `PR(s) and fetched head SHA(s):\n\n` +
-              `${list}\n\n` +
-              `CI run: ${runUrl}`;
-          } else if (status === 'failed') {
-            if (deps.length === 0) {
-              core.info('status=failed but no valid dependencies after validation; skipping.');
+
+            if (report.version !== 1) {
+              core.info('Unexpected report version; skipping.');
               return;
             }
-            const list = deps
-              .map((d) => `- https://github.com/${d.repo}/pull/${d.number}${shortSha(d.head_sha)}`)
-              .join('\n');
-            // Render only fixed text selected by an allowed error code.
-            const REASONS = {
-              fetch_failed: 'the dependency PR could not be fetched (it may not exist)',
-              no_common_base: 'no common base with the dependency PR',
-              rev_list_failed: 'could not determine the dependency commits',
-              cherry_pick_conflict: 'cherry-pick failed (if your PR has merge commits, rebase instead)',
-              unsupported_repo: 'the dependency repository is not supported',
-              report_parse_failed: 'the dependency report could not be read',
-            };
-            const code = typeof report.error_code === 'string' ? report.error_code : '';
-            const reason = REASONS[code] ? `\n\nReason: ${REASONS[code]}` : '';
-            body =
-              `${marker}\n` +
-              `### ❌ Cross-repo dependency could not be applied\n\n` +
-              `The Build report says the declared dependency PR(s) could not ` +
-              `be applied, so CI did **not** run against the combined code:\n\n` +
-              `${list}${reason}\n\n` +
-              `CI run: ${runUrl}`;
-          } else {
-            const example = `depends-on: [${allow[0] || 'owner/repo'}/pull/<N> ` +
-              `${allow[1] || 'owner/repo'}/pull/<M>]`;
-            body =
-              `${marker}\n` +
-              `### ⚠️ \`depends-on\` could not be parsed\n\n` +
-              `A \`depends-on:\` line was found in the PR description, but no ` +
-              `valid dependency was parsed. Supported repositories: ` +
-              `\`${allow.join('`, `')}\`; the PR id must be numeric.\n\n` +
-              `Expected format:\n\n\`\`\`\n${example}\n\`\`\`\n\n` +
-              `CI run: ${runUrl}`;
-          }
+            const status = report.status;
+            if (status !== 'ok' && status !== 'invalid' && status !== 'failed') {
+              core.info(`Report status='${status}'; nothing to comment.`);
+              return;
+            }
 
-          // Update only this run's bot comment; otherwise create one.
-          const comments = await github.paginate(
-            github.rest.issues.listComments,
-            { owner, repo, issue_number: prNum, per_page: 100 });
-          const existing = comments.find((c) =>
-            c.user && c.user.type === 'Bot' && c.body && c.body.includes(marker));
-          if (existing) {
-            await github.rest.issues.updateComment({
-              owner, repo, comment_id: existing.id, body });
-            core.info(`Updated this run's comment on PR #${prNum}.`);
-          } else {
-            await github.rest.issues.createComment({
-              owner, repo, issue_number: prNum, body });
-            core.info(`Created a new comment on PR #${prNum}.`);
-          }
+            // Match the Python parser's numeric and repository limits. Reject
+            // the whole report instead of silently dropping unsafe entries.
+            const isSafeNumber = (n) => Number.isSafeInteger(n) && n > 0;
+            const rawDeps = Array.isArray(report.dependencies) ? report.dependencies : null;
+            if (rawDeps === null) {
+              core.info('Report dependencies are not an array; skipping.');
+              return;
+            }
+            const deps = rawDeps.filter((d) => d && typeof d.repo === 'string'
+              && allow.includes(d.repo) && isSafeNumber(d.number));
+            if (deps.length !== rawDeps.length) {
+              core.info('Report contains an invalid dependency entry; skipping.');
+              return;
+            }
+            const keys = deps.map((d) => `${d.repo}#${d.number}`);
+            if (new Set(keys).size !== keys.length) {
+              core.info('Report contains duplicate dependencies; skipping.');
+              return;
+            }
+            if (status === 'invalid' && deps.length !== 0) {
+              core.info('status=invalid but dependencies are present; skipping.');
+              return;
+            }
+            const isFullSha = (s) => typeof s === 'string' && /^[0-9a-f]{40}$/i.test(s);
+            if (status === 'ok' && !deps.every((d) => isFullSha(d.head_sha))) {
+              core.info('status=ok but a full dependency head SHA is missing; skipping.');
+              return;
+            }
+
+            // Bind the report to both the triggering run and the PR's current
+            // head. Stale, cancelled, or mismatched reports must not comment.
+            const headSha = context.payload.workflow_run.head_sha;
+            if (report.head_sha !== headSha) {
+              core.info('Report head_sha does not match workflow_run head_sha; skipping.');
+              return;
+            }
+            const claimed = Number(report.pr_number);
+
+            let prNum = null;
+            if (Number.isSafeInteger(claimed) && claimed > 0) {
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner, repo, pull_number: claimed });
+                if (pr.head.sha === headSha) prNum = claimed;
+              } catch (e) {
+                prNum = null;
+              }
+            }
+            if (prNum === null) {
+              core.info(
+                "workflow_run head_sha does not match the claimed PR's current " +
+                'head (stale/cancelled run, or artifact mismatch); skipping comment.');
+              return;
+            }
+
+            // Preserve one idempotent comment per Build run.
+            const runId = context.payload.workflow_run.id;
+            const marker = `<!-- nuttx-depends-on-bot run-${runId} -->`;
+            const runUrl = context.payload.workflow_run.html_url;
+            const shortSha = (s) =>
+              (typeof s === 'string' && /^[0-9a-f]{7,40}$/i.test(s)) ? ` @ ${s.slice(0, 10)}` : '';
+
+            let body;
+            if (status === 'ok') {
+              if (deps.length === 0) {
+                core.info('status=ok but no valid dependencies after validation; skipping.');
+                return;
+              }
+              const list = deps
+                .map((d) => `- https://github.com/${d.repo}/pull/${d.number}${shortSha(d.head_sha)}`)
+                .join('\n');
+              body =
+                `${marker}\n` +
+                `### 🔗 Cross-repo PR dependencies\n\n` +
+                `The read-only Build run reported the following dependent ` +
+                `PR(s) and fetched head SHA(s):\n\n` +
+                `${list}\n\n` +
+                `CI run: ${runUrl}`;
+            } else if (status === 'failed') {
+              if (deps.length === 0) {
+                core.info('status=failed but no valid dependencies after validation; skipping.');
+                return;
+              }
+              const list = deps
+                .map((d) => `- https://github.com/${d.repo}/pull/${d.number}${shortSha(d.head_sha)}`)
+                .join('\n');
+              // Render only fixed text selected by an allowed error code.
+              const REASONS = {
+                fetch_failed: 'the dependency PR could not be fetched (it may not exist)',
+                no_common_base: 'no common base with the dependency PR',
+                rev_list_failed: 'could not determine the dependency commits',
+                cherry_pick_conflict: 'cherry-pick failed (if your PR has merge commits, rebase instead)',
+                unsupported_repo: 'the dependency repository is not supported',
+                report_parse_failed: 'the dependency report could not be read',
+              };
+              const code = typeof report.error_code === 'string' ? report.error_code : '';
+              const reason = REASONS[code] ? `\n\nReason: ${REASONS[code]}` : '';
+              body =
+                `${marker}\n` +
+                `### ❌ Cross-repo dependency could not be applied\n\n` +
+                `The Build report says the declared dependency PR(s) could not ` +
+                `be applied, so CI did **not** run against the combined code:\n\n` +
+                `${list}${reason}\n\n` +
+                `CI run: ${runUrl}`;
+            } else {
+              const example = `depends-on: [${allow[0] || 'owner/repo'}/pull/<N> ` +
+                `${allow[1] || 'owner/repo'}/pull/<M>]`;
+              body =
+                `${marker}\n` +
+                `### ⚠️ \`depends-on\` could not be parsed\n\n` +
+                `A \`depends-on:\` line was found in the PR description, but no ` +
+                `valid dependency was parsed. Supported repositories: ` +
+                `\`${allow.join('`, `')}\`; the PR id must be numeric.\n\n` +
+                `Expected format:\n\n\`\`\`\n${example}\n\`\`\`\n\n` +
+                `CI run: ${runUrl}`;
+            }
+
+            // Update only this run's bot comment; otherwise create one.
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              { owner, repo, issue_number: prNum, per_page: 100 });
+            const existing = comments.find((c) =>
+              c.user && c.user.type === 'Bot' && c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body });
+              core.info(`Updated this run's comment on PR #${prNum}.`);
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNum, body });
+              core.info(`Created a new comment on PR #${prNum}.`);
+            }
     needs:
-    - alpha_bridge_inputs
+      - alpha_bridge_inputs
   alpha_bridge_inputs:
     name: CI input check
     runs-on: ubuntu-latest
@@ -222,115 +222,116 @@ jobs:
     outputs:
       changed: ${{ steps.identity.outputs.changed }}
     steps:
-    - id: identity
-      name: Check source, workflow, variables, and runner inputs
-      env:
-        GH_TOKEN: ${{ github.token }}
-        AB_REPOSITORY: ${{ github.repository }}
-        AB_RUN_ID: ${{ github.run_id }}
-        AB_HEAD_SHA: ${{ (github.event_name == 'schedule' || github.event_name 
-          == 'workflow_run') && 'e26d467fab748d329000351728e00aa5e98b721e' || 
-          github.sha }}
-        AB_REF: ${{ (github.event_name == 'schedule' || github.event_name == 
-          'workflow_run') && 'refs/heads/master' || github.ref }}
-        AB_WORKFLOW_DIGEST: 
-          d53339ebcb272054a5a299de1eea7ef35feecaaf3e10af00167dcb11179dd856
-        AB_EVENT: ${{ github.event_name }}
-        AB_SCHEDULE: ${{ github.event.schedule || '' }}
-        AB_VARIABLES: ${{ toJSON(vars) }}
-        AB_INPUTS: ${{ toJSON(inputs) }}
-        AB_WORKFLOW_RUN: ${{ toJSON(github.event.workflow_run) }}
-      shell: bash
-      run: "python3 - <<'ALPHA_BRIDGE_CI_PY'\n\"\"\"Native automatic-CI input check,
-        embedded in the owned fork configuration.\"\"\"\n\nfrom __future__ import
-        annotations\n\nimport base64\nimport hashlib\nimport json\nimport os\nimport
-        re\nimport urllib.parse\nimport urllib.request\n\nINPUT_CHECK_NAMES = (\"\
-        CI input check\", \"AlphaBridge input check\")\nINPUT_IDENTITY_PREFIXES =
-        (\"CI input identity \", \"AlphaBridge input identity \")\n\n\ndef input_identity(job):\n\
-        \    for step in job.get(\"steps\", []):\n        if step.get(\"conclusion\"\
-        ) != \"success\":\n            continue\n        name = step.get(\"name\"\
-        , \"\")\n        for prefix in INPUT_IDENTITY_PREFIXES:\n            if name.startswith(prefix):\n\
-        \                identity = name.removeprefix(prefix)\n                if
-        re.fullmatch(r\"[0-9a-f]{64}\", identity):\n                    return identity\n\
-        \    return \"\"\n\n\ndef parent_has_work(get, repository, parent):\n    if
-        (\n        not parent\n        or parent.get(\"head_branch\") != \"alpha-bridge-ci\"\
-        \n        or parent.get(\"status\") != \"completed\"\n    ):\n        return
-        True\n    sha = parent[\"head_sha\"]\n    if re.fullmatch(r\"[0-9a-f]{40}\"\
-        , sha) is None:\n        raise ValueError(\"parent workflow has no exact configuration
-        commit\")\n    record = get(f\"/repos/{repository}\")\n    marker_file = get(f\"\
-        /repos/{repository}/contents/.github/alpha-bridge-ci.json?ref={sha}\")\n \
-        \   marker = json.loads(base64.b64decode(marker_file[\"content\"]))\n    if
-        (\n        record.get(\"fork\") is not True\n        or marker.get(\"schema\"\
-        ) != \"alpha-bridge/fork-ci\"\n        or marker.get(\"source_repository\"\
-        ) != record.get(\"parent\", {}).get(\"full_name\")\n    ):\n        raise
-        ValueError(\"parent CI configuration has no verified fork ownership\")\n \
-        \   path = parent[\"path\"].split(\"@\", 1)[0]\n    if not path.startswith(\"\
-        .github/workflows/\") or \"/\" in path.removeprefix(\".github/workflows/\"\
-        ):\n        raise ValueError(\"parent workflow path is outside its configuration
-        owner\")\n    definition = get(f\"/repos/{repository}/contents/{urllib.parse.quote(path,
-        safe='/')}?ref={sha}\")\n    if hashlib.sha256(base64.b64decode(definition[\"\
-        content\"])).hexdigest() != marker.get(\n        \"definition_sha256\", {}\n\
-        \    ).get(path):\n        raise ValueError(\"parent workflow differs from
-        its owned definition\")\n    if path == \".github/workflows/alpha-bridge-ci-verify.yml\"\
-        :\n        return False\n    jobs = []\n    page = 1\n    while True:\n  \
-        \      values = get(\n            f\"/repos/{repository}/actions/runs/{parent['id']}/jobs?per_page=100&page={page}\"\
-        \n        )[\"jobs\"]\n        jobs.extend(values)\n        if len(values)
-        < 100:\n            break\n        page += 1\n    guards = [\n        job\n\
-        \        for job in jobs\n        if job.get(\"name\") in INPUT_CHECK_NAMES\n\
-        \        and job.get(\"conclusion\") == \"success\"\n        and input_identity(job)\n\
-        \    ]\n    return not guards or any(\n        job not in guards and job.get(\"\
-        conclusion\") != \"skipped\" for job in jobs\n    )\n\n\ndef changed(get,
-        *, repository, run_id, identity, job_name):\n    current = get(f\"/repos/{repository}/actions/runs/{run_id}\"\
-        )\n    event = current[\"event\"]\n    page = 1\n    while True:\n       \
-        \ # Filter locally: GitHub caps filtered searches at 1,000 results.\n    \
-        \    query = urllib.parse.urlencode({\"per_page\": 100, \"page\": page})\n\
-        \        runs = get(f\"/repos/{repository}/actions/workflows/{current['workflow_id']}/runs?{query}\"\
-        )\n        for run in runs[\"workflow_runs\"]:\n            if run[\"id\"\
-        ] == run_id:\n                continue\n            if run.get(\"head_branch\"\
-        ) != current[\"head_branch\"] or run.get(\"event\") != event:\n          \
-        \      continue\n            job_page = 1\n            while True:\n     \
-        \           jobs = get(\n                    f\"/repos/{repository}/actions/runs/{run['id']}/jobs?per_page=100&page={job_page}\"\
-        \n                )[\"jobs\"]\n                for job in jobs:\n        \
-        \            if (\n                        (\n                           \
-        \ job[\"name\"] in INPUT_CHECK_NAMES\n                            if job_name
-        in INPUT_CHECK_NAMES\n                            else job[\"name\"] == job_name\n\
-        \                        )\n                        and job.get(\"status\"\
-        ) == \"completed\"\n                        and job.get(\"conclusion\") ==
-        \"success\"\n                        and input_identity(job) == identity\n\
-        \                    ):\n                        return False\n          \
-        \      if len(jobs) < 100:\n                    break\n                job_page
-        += 1\n        if len(runs[\"workflow_runs\"]) < 100:\n            return True\n\
-        \        page += 1\n\n\ndef main():\n    event = os.environ[\"AB_EVENT\"]\n\
-        \    event_payload = None\n    if event not in {\"schedule\", \"workflow_run\"\
-        }:\n        with open(os.environ[\"GITHUB_EVENT_PATH\"], encoding=\"utf-8\"\
-        ) as payload_file:\n            event_payload = json.load(payload_file)\n\
-        \    inputs = {\n        \"source_commit\": os.environ[\"AB_HEAD_SHA\"],\n\
-        \        \"source_ref\": os.environ[\"AB_REF\"],\n        \"workflow_definition\"\
-        : os.environ[\"AB_WORKFLOW_DIGEST\"],\n        \"event\": event,\n       \
-        \ \"event_payload\": event_payload,\n        \"schedule\": os.environ[\"AB_SCHEDULE\"\
-        ],\n        \"variables\": json.loads(os.environ[\"AB_VARIABLES\"]),\n   \
-        \     \"inputs\": json.loads(os.environ[\"AB_INPUTS\"]),\n        \"runner_image\"\
-        : [os.environ.get(\"ImageOS\", \"\"), os.environ.get(\"ImageVersion\", \"\"\
-        )],\n        \"producer\": json.loads(os.environ.get(\"AB_WORKFLOW_RUN\",
-        \"null\")),\n    }\n    identity = hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()\n\
-        \n    def get(path):\n        request = urllib.request.Request(\n        \
-        \    \"https://api.github.com\" + path,\n            headers={\n         \
-        \       \"Authorization\": \"Bearer \" + os.environ[\"GH_TOKEN\"],\n     \
-        \           \"Accept\": \"application/vnd.github+json\",\n               \
-        \ \"X-GitHub-Api-Version\": \"2026-03-10\",\n            },\n        )\n \
-        \       with urllib.request.urlopen(request, timeout=60) as response:\n  \
-        \          return json.load(response)\n\n    manual = event == \"workflow_dispatch\"\
-        \ or int(os.environ[\"GITHUB_RUN_ATTEMPT\"]) > 1\n    should_run = manual
-        or (\n        (\n            inputs[\"event\"] != \"workflow_run\"\n     \
-        \       or parent_has_work(get, os.environ[\"AB_REPOSITORY\"], inputs[\"producer\"\
-        ])\n        )\n        and changed(\n            get,\n            repository=os.environ[\"\
-        AB_REPOSITORY\"],\n            run_id=int(os.environ[\"AB_RUN_ID\"]),\n  \
-        \          identity=identity,\n            job_name=\"CI input check\",\n\
-        \        )\n    )\n    with open(os.environ[\"GITHUB_OUTPUT\"], \"a\", encoding=\"\
-        utf-8\") as output:\n        output.write(f\"digest={identity}\\nchanged={str(should_run).lower()}\\\
-        n\")\n    print(\n        \"Explicit CI run requested\"\n        if manual\n\
-        \        else \"CI inputs changed\"\n        if should_run\n        else \"\
-        CI inputs unchanged; build and test jobs skipped\"\n    )\n\n\nif __name__
-        == \"__main__\":\n    main()\n\nALPHA_BRIDGE_CI_PY\n"
-    - name: CI input identity ${{ steps.identity.outputs.digest }}
-      run: echo 'Input identity recorded'
+      - id: identity
+        name: Check source, workflow, variables, and runner inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AB_REPOSITORY: ${{ github.repository }}
+          AB_RUN_ID: ${{ github.run_id }}
+          AB_HEAD_SHA: ${{ (github.event_name == 'schedule' || github.event_name
+            == 'workflow_run') && 'e26d467fab748d329000351728e00aa5e98b721e' || 
+            github.sha }}
+          AB_REF: ${{ (github.event_name == 'schedule' || github.event_name == 
+            'workflow_run') && 'refs/heads/master' || github.ref }}
+          AB_WORKFLOW_DIGEST: 
+            3d26cb209b7aba55dfb7b6f763e8eda96afc1153d775ceafa894e391a4a12464
+          AB_EVENT: ${{ github.event_name }}
+          AB_SCHEDULE: ${{ github.event.schedule || '' }}
+          AB_VARIABLES: ${{ toJSON(vars) }}
+          AB_INPUTS: ${{ toJSON(inputs) }}
+          AB_WORKFLOW_RUN: ${{ toJSON(github.event.workflow_run) }}
+        shell: bash
+        run: "python3 - <<'ALPHA_BRIDGE_CI_PY'\n\"\"\"Native automatic-CI input check,
+          embedded in the owned fork configuration.\"\"\"\n\nfrom __future__ import
+          annotations\n\nimport base64\nimport hashlib\nimport json\nimport os\nimport
+          re\nimport urllib.parse\nimport urllib.request\n\nINPUT_CHECK_NAMES = (\"\
+          CI input check\", \"AlphaBridge input check\")\nINPUT_IDENTITY_PREFIXES
+          = (\"CI input identity \", \"AlphaBridge input identity \")\n\n\ndef input_identity(job):\n\
+          \    for step in job.get(\"steps\", []):\n        if step.get(\"conclusion\"\
+          ) != \"success\":\n            continue\n        name = step.get(\"name\"\
+          , \"\")\n        for prefix in INPUT_IDENTITY_PREFIXES:\n            if
+          name.startswith(prefix):\n                identity = name.removeprefix(prefix)\n\
+          \                if re.fullmatch(r\"[0-9a-f]{64}\", identity):\n       \
+          \             return identity\n    return \"\"\n\n\ndef parent_has_work(get,
+          repository, parent):\n    if (\n        not parent\n        or parent.get(\"\
+          head_branch\") != \"alpha-bridge-ci\"\n        or parent.get(\"status\"\
+          ) != \"completed\"\n    ):\n        return True\n    sha = parent[\"head_sha\"\
+          ]\n    if re.fullmatch(r\"[0-9a-f]{40}\", sha) is None:\n        raise ValueError(\"\
+          parent workflow has no exact configuration commit\")\n    record = get(f\"\
+          /repos/{repository}\")\n    marker_file = get(f\"/repos/{repository}/contents/.github/alpha-bridge-ci.json?ref={sha}\"\
+          )\n    marker = json.loads(base64.b64decode(marker_file[\"content\"]))\n\
+          \    if (\n        record.get(\"fork\") is not True\n        or marker.get(\"\
+          schema\") != \"alpha-bridge/fork-ci\"\n        or marker.get(\"source_repository\"\
+          ) != record.get(\"parent\", {}).get(\"full_name\")\n    ):\n        raise
+          ValueError(\"parent CI configuration has no verified fork ownership\")\n\
+          \    path = parent[\"path\"].split(\"@\", 1)[0]\n    if not path.startswith(\"\
+          .github/workflows/\") or \"/\" in path.removeprefix(\".github/workflows/\"\
+          ):\n        raise ValueError(\"parent workflow path is outside its configuration
+          owner\")\n    definition = get(f\"/repos/{repository}/contents/{urllib.parse.quote(path,
+          safe='/')}?ref={sha}\")\n    if hashlib.sha256(base64.b64decode(definition[\"\
+          content\"])).hexdigest() != marker.get(\n        \"definition_sha256\",
+          {}\n    ).get(path):\n        raise ValueError(\"parent workflow differs
+          from its owned definition\")\n    if path == \".github/workflows/alpha-bridge-ci-verify.yml\"\
+          :\n        return False\n    jobs = []\n    page = 1\n    while True:\n\
+          \        values = get(\n            f\"/repos/{repository}/actions/runs/{parent['id']}/jobs?per_page=100&page={page}\"\
+          \n        )[\"jobs\"]\n        jobs.extend(values)\n        if len(values)
+          < 100:\n            break\n        page += 1\n    guards = [\n        job\n\
+          \        for job in jobs\n        if job.get(\"name\") in INPUT_CHECK_NAMES\n\
+          \        and job.get(\"conclusion\") == \"success\"\n        and input_identity(job)\n\
+          \    ]\n    return not guards or any(\n        job not in guards and job.get(\"\
+          conclusion\") != \"skipped\" for job in jobs\n    )\n\n\ndef changed(get,
+          *, repository, run_id, identity, job_name):\n    current = get(f\"/repos/{repository}/actions/runs/{run_id}\"\
+          )\n    event = current[\"event\"]\n    page = 1\n    while True:\n     \
+          \   # Filter locally: GitHub caps filtered searches at 1,000 results.\n\
+          \        query = urllib.parse.urlencode({\"per_page\": 100, \"page\": page})\n\
+          \        runs = get(f\"/repos/{repository}/actions/workflows/{current['workflow_id']}/runs?{query}\"\
+          )\n        for run in runs[\"workflow_runs\"]:\n            if run[\"id\"\
+          ] == run_id:\n                continue\n            if run.get(\"head_branch\"\
+          ) != current[\"head_branch\"] or run.get(\"event\") != event:\n        \
+          \        continue\n            job_page = 1\n            while True:\n \
+          \               jobs = get(\n                    f\"/repos/{repository}/actions/runs/{run['id']}/jobs?per_page=100&page={job_page}\"\
+          \n                )[\"jobs\"]\n                for job in jobs:\n      \
+          \              if (\n                        (\n                       \
+          \     job[\"name\"] in INPUT_CHECK_NAMES\n                            if
+          job_name in INPUT_CHECK_NAMES\n                            else job[\"name\"\
+          ] == job_name\n                        )\n                        and job.get(\"\
+          status\") == \"completed\"\n                        and job.get(\"conclusion\"\
+          ) == \"success\"\n                        and input_identity(job) == identity\n\
+          \                    ):\n                        return False\n        \
+          \        if len(jobs) < 100:\n                    break\n              \
+          \  job_page += 1\n        if len(runs[\"workflow_runs\"]) < 100:\n     \
+          \       return True\n        page += 1\n\n\ndef main():\n    event = os.environ[\"\
+          AB_EVENT\"]\n    event_payload = None\n    if event not in {\"schedule\"\
+          , \"workflow_run\"}:\n        with open(os.environ[\"GITHUB_EVENT_PATH\"\
+          ], encoding=\"utf-8\") as payload_file:\n            event_payload = json.load(payload_file)\n\
+          \    inputs = {\n        \"source_commit\": os.environ[\"AB_HEAD_SHA\"],\n\
+          \        \"source_ref\": os.environ[\"AB_REF\"],\n        \"workflow_definition\"\
+          : os.environ[\"AB_WORKFLOW_DIGEST\"],\n        \"event\": event,\n     \
+          \   \"event_payload\": event_payload,\n        \"schedule\": os.environ[\"\
+          AB_SCHEDULE\"],\n        \"variables\": json.loads(os.environ[\"AB_VARIABLES\"\
+          ]),\n        \"inputs\": json.loads(os.environ[\"AB_INPUTS\"]),\n      \
+          \  \"runner_image\": [os.environ.get(\"ImageOS\", \"\"), os.environ.get(\"\
+          ImageVersion\", \"\")],\n        \"producer\": json.loads(os.environ.get(\"\
+          AB_WORKFLOW_RUN\", \"null\")),\n    }\n    identity = hashlib.sha256(json.dumps(inputs,
+          sort_keys=True).encode()).hexdigest()\n\n    def get(path):\n        request
+          = urllib.request.Request(\n            \"https://api.github.com\" + path,\n\
+          \            headers={\n                \"Authorization\": \"Bearer \" +
+          os.environ[\"GH_TOKEN\"],\n                \"Accept\": \"application/vnd.github+json\"\
+          ,\n                \"X-GitHub-Api-Version\": \"2026-03-10\",\n         \
+          \   },\n        )\n        with urllib.request.urlopen(request, timeout=60)
+          as response:\n            return json.load(response)\n\n    manual = event
+          == \"workflow_dispatch\" or int(os.environ[\"GITHUB_RUN_ATTEMPT\"]) > 1\n\
+          \    should_run = manual or (\n        (\n            inputs[\"event\"]
+          != \"workflow_run\"\n            or parent_has_work(get, os.environ[\"AB_REPOSITORY\"\
+          ], inputs[\"producer\"])\n        )\n        and changed(\n            get,\n\
+          \            repository=os.environ[\"AB_REPOSITORY\"],\n            run_id=int(os.environ[\"\
+          AB_RUN_ID\"]),\n            identity=identity,\n            job_name=\"\
+          CI input check\",\n        )\n    )\n    with open(os.environ[\"GITHUB_OUTPUT\"\
+          ], \"a\", encoding=\"utf-8\") as output:\n        output.write(f\"digest={identity}\\\
+          nchanged={str(should_run).lower()}\\n\")\n    print(\n        \"Explicit
+          CI run requested\"\n        if manual\n        else \"CI inputs changed\"\
+          \n        if should_run\n        else \"CI inputs unchanged; build and test
+          jobs skipped\"\n    )\n\n\nif __name__ == \"__main__\":\n    main()\n\n\
+          ALPHA_BRIDGE_CI_PY\n"
+      - name: CI input identity ${{ steps.identity.outputs.digest }}
+        run: echo 'Input identity recorded'
