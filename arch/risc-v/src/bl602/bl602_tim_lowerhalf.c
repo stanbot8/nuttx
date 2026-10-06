@@ -389,16 +389,16 @@ int bl602_timer_initialize(const char *devpath, int timer)
 
   switch (timer)
     {
-    case 0:
 #ifdef CONFIG_BL602_TIMER0
+    case 0:
       lower = &g_tim1_lowerhalf;
-#endif
       break;
-    case 1:
+#endif
 #ifdef CONFIG_BL602_TIMER1
+    case 1:
       lower = &g_tim2_lowerhalf;
-#endif
       break;
+#endif
     default:
       return -ENODEV;
     }
